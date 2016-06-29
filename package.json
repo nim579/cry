@@ -1,13 +1,14 @@
 {
-  "name": "cry",
+  "name": "cry-cli",
   "version": "1.0.0",
   "description": "Crypto tools",
   "main": "index.js",
+  "preferGlobal": true,
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "prepublish": "rm -rf lib/ && exec $(npm bin)/coffee -c -o ./ ./"
   },
   "author": "Nick Iv",
-  "license": "ISC",
+  "license": "MIT",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/nim579/cry.git"
@@ -16,10 +17,22 @@
     "url": "https://github.com/nim579/cry/issues"
   },
   "bin": {
-    "cry": "index.coffee"
+    "cry": "bin/cry"
   },
   "homepage": "https://github.com/nim579/cry#readme",
   "dependencies": {
     "commander": "^2.9.0"
-  }
+  },
+  "devDependencies": {
+    "coffee-script": "^1.10.0"
+  },
+  "keywords": [
+    "cry",
+    "crypto",
+    "cli",
+    "tools",
+    "cipher",
+    "rsa",
+    "dh"
+  ]
 }

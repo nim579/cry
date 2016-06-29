@@ -21,7 +21,7 @@ replaceHome = (path)-> return path.replace /^\~/, os.homedir()
 pr.command 'encpriv <text>'
  .description 'Encrypt with private key'
  .option '-e, --encoding [name]', 'Set encoding for exiting cipher', 'hex'
- .option '-R, --private [path]', 'Set path to public key', PRI_PATH
+ .option '-R, --private [path]', 'Set path to private key', PRI_PATH
  .action (text, options)->
     key = fs.readFileSync replaceHome(options.private), 'utf8'
     buf = new Buffer(text, 'utf8')
@@ -47,9 +47,9 @@ pr.command 'encpub <text>'
 
 
 pr.command 'decpriv <encrypted>'
- .description 'Decrypt with private key'
+ .description 'Decrypt with private key by encrypted string'
  .option '-e, --encoding [name]', 'Set encoding for encrypted string', 'hex'
- .option '-R, --private [path]', 'Set path to public key', PRI_PATH
+ .option '-R, --private [path]', 'Set path to private key', PRI_PATH
  .action (encrypted, options)->
     key = fs.readFileSync replaceHome(options.private), 'utf8'
 
@@ -62,7 +62,7 @@ pr.command 'decpriv <encrypted>'
 
 
 pr.command 'decpub <encrypted>'
- .description 'Decrypt with public key'
+ .description 'Decrypt with public key by encrypted string'
  .option '-e, --encoding [name]', 'Set encoding for encrypted string', 'hex'
  .option '-P, --public [path]', 'Set path to public key', PUB_PATH
  .action (encrypted, options)->
@@ -77,11 +77,11 @@ pr.command 'decpub <encrypted>'
 
 
 pr.command 'enc'
- .description 'Encrypt with cipher'
+ .description 'Encrypt with cipher by text or file'
  .option '-f, --file [path]', 'Send file for encryption'
- .option '-t, --text [text]', 'Set text for encryption'
- .option '-e, --encoding [name]', 'Set encoding for returning cipher', 'hex'
- .option '-K, --passkey [path]', 'Set path to passkey', PASS_PATH
+ .option '-t, --text [text]', 'Send text for encryption'
+ .option '-e, --encoding [name]', 'Set encoding for exiting cipher', 'hex'
+ .option '-K, --passkey [path]', 'Set path to passkey for encryption', PASS_PATH
  .action (options)->
     return console.error 'No text or file' if not options.text and not options.file
 
@@ -111,9 +111,9 @@ pr.command 'enc'
 
 
 pr.command 'dec <encrypted>'
- .description 'Decrypt with cipher'
+ .description 'Decrypt with cipher by encrypted string'
  .option '-e, --encoding [name]', 'Set encoding for encrypted string', 'hex'
- .option '-K, --passkey [path]', 'Set path to passkey', PASS_PATH
+ .option '-K, --passkey [path]', 'Set path to passkey for decryption', PASS_PATH
  .action (encrypted, options)->
     passkey = fs.readFileSync replaceHome options.passkey
     cipher = crypto.createDecipher 'aes256', passkey
@@ -127,7 +127,7 @@ pr.command 'dec <encrypted>'
 
 pr.command 'sign <file_path>'
  .description 'Create sign for file'
- .option '-S, --save [path]', 'Save signature'
+ .option '-S, --save [path]', 'Save signature to path'
  .option '-e, --encoding [name]', 'Set encoding for returning passkey (if no save flag)', 'hex'
  .option '-R, --private [path]', 'Set path to public key', PRI_PATH
  .action (file, options)->
@@ -150,9 +150,9 @@ pr.command 'sign <file_path>'
 
 pr.command 'verify <file_path>'
  .description 'Verify signed file'
- .option '-f, --file [path]', 'Set path to public key'
- .option '-t, --text [text]', 'Set path to public key'
- .option '-e, --encoding [name]', 'Set encoding signature text', 'hex'
+ .option '-f, --file [path]', 'Send path to signature file'
+ .option '-t, --text [text]', 'Send text of signature'
+ .option '-e, --encoding [name]', 'Set encoding signature text (if text sended', 'hex'
  .option '-P, --public [path]', 'Set path to public key', PUB_PATH
  .action (file, options)->
     key = fs.readFileSync replaceHome options.public
@@ -177,10 +177,10 @@ pr.command 'verify <file_path>'
 
 
 pr.command 'dhmake'
- .option '-s, --slave', false
- .option '-S, --save [path]', 'Save passkey'
- .option '-e, --encoding [name]', 'Set encoding for returning passkey (if no save flag)', 'hex'
  .description 'Make DH passkey'
+ .option '-s, --slave', 'Command for second client', false
+ .option '-S, --save [path]', 'Save passkey path (show in console if not sended)'
+ .option '-e, --encoding [name]', 'Set encoding for returning passkey (if no save flag)', 'hex'
  .action (options)->
     ask = rl.createInterface
           input:  process.stdin
@@ -231,8 +231,8 @@ pr.command 'dhmake'
 
 pr.command 'ecdhmake'
  .option '-c, --curve [curve]', 'Set Elliptic Curve name', 'secp521r1'
- .option '-S, --save [path]', 'Save passkey'
- .option '-e, --encoding [name]', 'Set encoding for returning passkey', 'hex'
+ .option '-S, --save [path]', 'Save passkey path (show in console if not sended)'
+ .option '-e, --encoding [name]', 'Set encoding for returning passkey (if no save flag)', 'hex'
  .description 'Make ECDH passkey'
  .action (options)->
     ask = rl.createInterface
