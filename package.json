@@ -1,0 +1,25 @@
+{
+  "name": "cry",
+  "version": "1.0.0",
+  "description": "Crypto tools",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Nick Iv",
+  "license": "ISC",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/nim579/cry.git"
+  },
+  "bugs": {
+    "url": "https://github.com/nim579/cry/issues"
+  },
+  "bin": {
+    "cry": "index.coffee"
+  },
+  "homepage": "https://github.com/nim579/cry#readme",
+  "dependencies": {
+    "commander": "^2.9.0"
+  }
+}
