@@ -19,7 +19,7 @@ cry enc -t "Test text"
 * **decpriv** `<encrypted>` — Decrypt with private key
 * **decpub** `<encrypted>` — Decrypt with public key
 * **enc** `[options]` — Encrypt with cipher
-* **dec** `<encrypted>` — Decrypt with cipher
+* **dec** `[options]` — Decrypt with cipher
 * **sign** `<file_path>` — Create sign for file
 * **verify** `<file_path>` — Verify signed file
 * **dhmake** `[options]` — Make DH passkey
@@ -27,10 +27,10 @@ cry enc -t "Test text"
 
 More information about commands:
 ```
-cru --help
+cry --help
 ```
 
 More information about some command:
 ```
-cru <command> --help
+cry <command> --help
 ```

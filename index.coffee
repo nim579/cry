@@ -2,6 +2,7 @@
 
 pkg    = require './package.json'
 crypto = require 'crypto'
+stream = require 'stream'
 fs     = require 'fs'
 path   = require 'path'
 os     = require 'os'
@@ -20,36 +21,34 @@ replaceHome = (path)-> return path.replace /^\~/, os.homedir()
 
 pr.command 'encpriv <text>'
  .description 'Encrypt with private key'
- .option '-e, --encoding [name]', 'Set encoding for exiting cipher', 'hex'
- .option '-R, --private [path]', 'Set path to private key', PRI_PATH
+ .option '-e, --encoding <name>', 'Set encoding for exiting cipher', 'hex'
+ .option '-R, --private <path>', 'Set path to private key', PRI_PATH
  .action (text, options)->
     key = fs.readFileSync replaceHome(options.private), 'utf8'
     buf = new Buffer(text, 'utf8')
 
     enc = crypto.privateEncrypt key, buf
 
-    console.log '\nYour cipher:'
     console.log enc.toString options.encoding
 
 
 pr.command 'encpub <text>'
  .description 'Encrypt with public key'
- .option '-e, --encoding [name]', 'Set encoding for exiting cipher', 'hex'
- .option '-P, --public [path]', 'Set path to public key', PUB_PATH
+ .option '-e, --encoding <name>', 'Set encoding for exiting cipher', 'hex'
+ .option '-P, --public <path>', 'Set path to public key', PUB_PATH
  .action (text, options)->
     key = fs.readFileSync replaceHome(options.public), 'utf8'
     buf = new Buffer(text, 'utf8')
 
     enc = crypto.publicEncrypt key, buf
 
-    console.log '\nYour cipher:'
     console.log enc.toString options.encoding
 
 
 pr.command 'decpriv <encrypted>'
  .description 'Decrypt with private key by encrypted string'
- .option '-e, --encoding [name]', 'Set encoding for encrypted string', 'hex'
- .option '-R, --private [path]', 'Set path to private key', PRI_PATH
+ .option '-e, --encoding <name>', 'Set encoding for encrypted string', 'hex'
+ .option '-R, --private <path>', 'Set path to private key', PRI_PATH
  .action (encrypted, options)->
     key = fs.readFileSync replaceHome(options.private), 'utf8'
 
@@ -57,14 +56,13 @@ pr.command 'decpriv <encrypted>'
 
     dec = crypto.privateDecrypt key, buf
 
-    console.log '\nDecrypted:'
     console.log dec.toString 'utf8'
 
 
 pr.command 'decpub <encrypted>'
  .description 'Decrypt with public key by encrypted string'
- .option '-e, --encoding [name]', 'Set encoding for encrypted string', 'hex'
- .option '-P, --public [path]', 'Set path to public key', PUB_PATH
+ .option '-e, --encoding <name>', 'Set encoding for encrypted string', 'hex'
+ .option '-P, --public <path>', 'Set path to public key', PUB_PATH
  .action (encrypted, options)->
     key = fs.readFileSync replaceHome(options.public), 'utf8'
 
@@ -72,64 +70,80 @@ pr.command 'decpub <encrypted>'
 
     dec = crypto.publicDecrypt key, buf
 
-    console.log '\nDecrypted:'
     console.log dec.toString 'utf8'
 
 
 pr.command 'enc'
  .description 'Encrypt with cipher by text or file'
- .option '-f, --file [path]', 'Send file for encryption'
- .option '-t, --text [text]', 'Send text for encryption'
- .option '-e, --encoding [name]', 'Set encoding for exiting cipher', 'hex'
- .option '-K, --passkey [path]', 'Set path to passkey for encryption', PASS_PATH
+ .option '-f, --file <path>', 'Send file for encryption'
+ .option '-t, --text <text>', 'Send text for encryption'
+ .option '-S, --save <path>', 'Save signature to path'
+ .option '-e, --encoding <name>', 'Set encoding for exiting cipher (for console output)', 'hex'
+ .option '-K, --passkey <path>', 'Set path to passkey for encryption', PASS_PATH
  .action (options)->
     return console.error 'No text or file' if not options.text and not options.file
 
     passkey = fs.readFileSync replaceHome options.passkey
     cipher = crypto.createCipher 'aes256', passkey
 
-    if options.text
-        enc = cipher.update options.text, 'utf8', options.encoding
-        enc += cipher.final options.encoding
-
-        console.log '\nYour cipher:'
-        console.log enc
+    if options.save
+        write = fs.createWriteStream replaceHome options.save
+        cipher.on 'end', -> console.log "Saved on", replaceHome(options.save)
 
     else
-        enc = ''
-        stream = fs.createReadStream replaceHome options.file
+        write = new stream.Writable()
+        write._write = (chunk, encoding, callback)->
+            process.stdout.write chunk.toString options.encoding
+            callback()
 
-        cipher.on 'readable', ->
-            data = cipher.read()
-            enc += data.toString options.encoding if data
+    if options.text
+        cipher.write options.text, 'utf8'
+        cipher.end()
+        cipher.pipe(write)
 
-        cipher.on 'end', ->
-            console.log '\nYour cipher:'
-            console.log enc
-
-        stream.pipe(cipher)
+    else
+        read = fs.createReadStream replaceHome options.file
+        read.pipe(cipher).pipe(write)
 
 
-pr.command 'dec <encrypted>'
+pr.command 'dec'
  .description 'Decrypt with cipher by encrypted string'
- .option '-e, --encoding [name]', 'Set encoding for encrypted string', 'hex'
- .option '-K, --passkey [path]', 'Set path to passkey for decryption', PASS_PATH
- .action (encrypted, options)->
+ .option '-f, --file <path>', 'Send file for decryption'
+ .option '-t, --text <text>', 'Send text for decryption'
+ .option '-S, --save <path>', 'Save signature to path'
+ .option '-e, --encoding <name>', 'Set encoding for encrypted string (for console input)', 'hex'
+ .option '-K, --passkey <path>', 'Set path to passkey for decryption', PASS_PATH
+ .action (options)->
+    return console.error 'No text or file' if not options.text and not options.file
+
     passkey = fs.readFileSync replaceHome options.passkey
     cipher = crypto.createDecipher 'aes256', passkey
 
-    dec = cipher.update encrypted, options.encoding, 'utf8'
-    dec += cipher.final 'utf8'
+    if options.save
+        write = fs.createWriteStream replaceHome options.save
+        cipher.on 'end', -> console.log "Saved on", replaceHome(options.save)
 
-    console.log '\nDecrypted:'
-    console.log dec
+    else
+        write = new stream.Writable()
+        write._write = (chunk, encoding, callback)->
+            process.stdout.write chunk.toString('utf8')
+            callback()
+
+    if options.text
+        cipher.write options.text, options.encoding
+        cipher.end()
+        cipher.pipe(write)
+
+    else
+        read = fs.createReadStream replaceHome options.file
+        read.pipe(cipher).pipe(write)
 
 
 pr.command 'sign <file_path>'
  .description 'Create sign for file'
- .option '-S, --save [path]', 'Save signature to path'
- .option '-e, --encoding [name]', 'Set encoding for returning passkey (if no save flag)', 'hex'
- .option '-R, --private [path]', 'Set path to public key', PRI_PATH
+ .option '-S, --save <path>', 'Save signature to path'
+ .option '-e, --encoding <name>', 'Set encoding for returning passkey (if no save flag)', 'hex'
+ .option '-P, --private <path>', 'Set path to public key', PRI_PATH
  .action (file, options)->
     key = fs.readFileSync replaceHome options.private
 
@@ -144,26 +158,27 @@ pr.command 'sign <file_path>'
         console.log "Saved on", replaceHome(options.save)
 
     else
-        console.log "Your signature:\n"
         console.log signature.toString options.encoding
 
 
 pr.command 'verify <file_path>'
  .description 'Verify signed file'
- .option '-f, --file [path]', 'Send path to signature file'
- .option '-t, --text [text]', 'Send text of signature'
- .option '-e, --encoding [name]', 'Set encoding signature text (if text sended', 'hex'
- .option '-P, --public [path]', 'Set path to public key', PUB_PATH
+ .option '-f, --file <path>', 'Send path to signature file'
+ .option '-s, --sign <string>', 'Send text of signature'
+ .option '-e, --encoding <name>', 'Set encoding signature text (if text sended', 'hex'
+ .option '-P, --public <path>', 'Set path to public key', PUB_PATH
  .action (file, options)->
+    return console.error 'No sign string or file' if not options.sign and not options.file
+
     key = fs.readFileSync replaceHome options.public
 
     verify = crypto.createVerify 'RSA-SHA256'
     file = fs.readFileSync replaceHome file
 
-    if options.text
-        signature = new Buffer(options.text, options.encoding)
+    if options.sign
+        signature = new Buffer(options.sign, options.encoding)
 
-    else if options.file
+    else
         signature = fs.readFileSync replaceHome options.file
 
     verify.update file
@@ -179,8 +194,8 @@ pr.command 'verify <file_path>'
 pr.command 'dhmake'
  .description 'Make DH passkey'
  .option '-s, --slave', 'Command for second client', false
- .option '-S, --save [path]', 'Save passkey path (show in console if not sended)'
- .option '-e, --encoding [name]', 'Set encoding for returning passkey (if no save flag)', 'hex'
+ .option '-S, --save [path]', "Save passkey path (save to '#{PASS_PATH}' if flag)"
+ .option '-e, --encoding <name>', 'Set encoding for returning passkey (if no save flag)', 'hex'
  .action (options)->
     ask = rl.createInterface
           input:  process.stdin
@@ -191,17 +206,18 @@ pr.command 'dhmake'
             dh = crypto.createDiffieHellman Number length
             dh.generateKeys()
 
-            console.log "Your master prime:", dh.getPrime('hex')
-            console.log "Your master generator:", dh.getGenerator('hex')
-            console.log "Your master public key:", dh.getPublicKey('hex')
+            console.log "\nYour master prime:", dh.getPrime('hex')
+            console.log "\nYour master generator:", dh.getGenerator('hex')
+            console.log "\nYour master public key:", dh.getPublicKey('hex')
 
-            ask.question 'Enter slave public key: ', (key)->
+            ask.question '\nEnter slave public key: ', (key)->
                 ask.close()
                 passkey = dh.computeSecret key, 'hex'
 
                 if options.save
+                    options.save = PASS_PATH if options.save is true
                     fs.writeFileSync replaceHome(options.save), passkey
-                    console.log "Saved on", replaceHome(options.save)
+                    console.log "Saved on '#{replaceHome(options.save)}'"
 
                 else
                     console.log "\nYour passkey in (#{options.encoding}):"
@@ -209,20 +225,21 @@ pr.command 'dhmake'
 
     else
         ask.question 'Enter master prime (in hex): ', (prime)->
-            ask.question 'Enter master generator (in hex): ', (generator)->
+            ask.question '\nEnter master generator (in hex): ', (generator)->
                 dh = crypto.createDiffieHellman prime, 'hex', generator, 'hex'
                 dh.generateKeys()
 
-                console.log "Your slave public key", dh.getPublicKey('hex')
+                console.log "\nYour slave public key:", dh.getPublicKey('hex')
 
-                ask.question 'Enter master public key: ', (key)->
+                ask.question '\nEnter master public key: ', (key)->
                     ask.close()
 
                     passkey = dh.computeSecret key, 'hex'
 
                     if options.save
+                        options.save = PASS_PATH if options.save is true
                         fs.writeFileSync replaceHome(options.save), passkey
-                        console.log "Saved on", replaceHome(options.save)
+                        console.log "Saved on '#{replaceHome(options.save)}'"
 
                     else
                         console.log "\nYour passkey in (#{options.encoding}):"
@@ -230,9 +247,9 @@ pr.command 'dhmake'
 
 
 pr.command 'ecdhmake'
- .option '-c, --curve [curve]', 'Set Elliptic Curve name', 'secp521r1'
- .option '-S, --save [path]', 'Save passkey path (show in console if not sended)'
- .option '-e, --encoding [name]', 'Set encoding for returning passkey (if no save flag)', 'hex'
+ .option '-c, --curve <curve>', 'Set Elliptic Curve name', 'secp521r1'
+ .option '-S, --save [path]', "Save passkey path (save to '#{PASS_PATH}' if flag)"
+ .option '-e, --encoding <name>', 'Set encoding for returning passkey (if no save flag)', 'hex'
  .description 'Make ECDH passkey'
  .action (options)->
     ask = rl.createInterface
@@ -244,14 +261,15 @@ pr.command 'ecdhmake'
 
     console.log "Your public key:", dh.getPublicKey('hex')
 
-    ask.question 'Enter other public key: ', (key)->
+    ask.question '\nEnter other public key: ', (key)->
         ask.close()
 
         passkey = dh.computeSecret key, 'hex'
 
         if options.save
+            options.save = PASS_PATH if options.save is true
             fs.writeFileSync replaceHome(options.save), passkey
-            console.log "Saved on", replaceHome(options.save)
+            console.log "Saved on '#{replaceHome(options.save)}'"
 
         else
             console.log "\nYour passkey in (#{options.encoding}):"
